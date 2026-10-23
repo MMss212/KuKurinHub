@@ -25,7 +25,7 @@ end
 env.KuKirinHubRemoteStop = stop
 
 local function fetch(filename)
-    local url = BASE .. filename .. "?check=" .. tostring(math.floor(os.clock() * 1000))
+    local url = BASE .. filename
     local ok, body = pcall(function() return game:HttpGet(url) end)
     if not ok or type(body) ~= "string" or #body == 0 then
         return nil
