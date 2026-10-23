@@ -1,117 +1,128 @@
--- KuKirin Hub V7.02 - Chargeur distant officiel
--- Ce fichier sera heberge sur GitHub; partage uniquement la ligne indiquee dans le README.
+-- KuKirin Hub V7.02 | Loader corrigé
+
 local env = (getgenv and getgenv()) or _G
-local BASE = "https://raw.githubusercontent.com/MMss212/KuKirinHub/main/"
-local CODE_FILE = "KuKirin_Hub_V7_02.lua"
-local CHECK_SECONDS = 60
-
--- Eviter les chargeurs simultanes.
-if type(env.KuKirinHubRemoteStop) == "function" then
-    pcall(env.KuKirinHubRemoteStop)
-end
-
+local BASE = "https://raw.githubusercontent.com/MMss212/KuKurinHub/main/"
 local active = true
 local loadedVersion = nil
-local failedControls = 0
-local failedCodeChecks = 0
 
-local function stop()
-    if not active then return end
-    active = false
-    if type(env.KuKirinHubCleanup) == "function" then
-        pcall(env.KuKirinHubCleanup)
-    end
-end
-env.KuKirinHubRemoteStop = stop
+local function fetch(name)
+    local ok, result = pcall(function()
+        return game:HttpGet(BASE .. name)
+    end)
 
-local function fetch(filename)
-    local url = BASE .. filename
-    local ok, body = pcall(function() return game:HttpGet(url) end)
-    if not ok or type(body) ~= "string" or #body == 0 then
+    if not ok or type(result) ~= "string"
+        or result == "" or result:find("<html", 1, true) then
+        warn("KuKirin : téléchargement impossible", name, result)
         return nil
     end
-    if body:find("<html", 1, true) then return nil end
-    return body
+
+    return result
 end
 
 local function readControl()
     local data = fetch("control.txt")
     if not data then return nil, nil end
-    local state, version = data:match("^%s*(%u+)%s*|%s*([^%s]+)")
-    if (state ~= "ON" and state ~= "OFF") or not version then
+
+    local state, version =
+        data:match("^%s*(%u+)%s*|%s*([^%s]+)")
+
+    if state ~= "ON" and state ~= "OFF" then
+        warn("KuKirin : contrôle invalide", data)
         return nil, nil
     end
+
     return state, version
 end
 
-local function runMain(version)
-    local code = fetch(CODE_FILE)
-    if not code then return false end
-    local compileOk, fn = pcall(loadstring, code)
-    if not compileOk or type(fn) ~= "function" then
-        warn("KuKirin Hub : impossible de compiler le nouveau script")
-        return false
+local function stop()
+    if not active then return end
+    active = false
+
+    if type(env.KuKirinHubCleanup) == "function" then
+        pcall(env.KuKirinHubCleanup)
     end
-    local ok, err = pcall(fn)
-    if not ok then
-        warn("KuKirin Hub : erreur de chargement", err)
-        return false
-    end
-    loadedVersion = version
-    return true
 end
 
--- Demarrage : le createur peut couper le Hub avec OFF|7.02.0.
+local function prepare()
+    local code = fetch("KuKirin_Hub_V7_02.lua")
+    if not code then return nil end
+
+    local fn, err = loadstring(code)
+    if not fn then
+        warn("KuKirin : erreur Lua", err)
+    end
+
+    return fn
+end
+
 local state, version = readControl()
-if state ~= "ON" then
-    warn("KuKirin Hub : indisponible ou desactive par le createur")
-    stop()
-    return
-end
-if not runMain(version) then
-    warn("KuKirin Hub : fichier principal indisponible")
-    stop()
+
+if not state then
+    warn("KuKirin : connexion impossible, ancien menu conservé")
     return
 end
 
--- Mise a jour des sessions actives, et arret a distance.
+if state == "OFF" then
+    local oldStop = env.KuKirinHubRemoteStop
+    if type(oldStop) == "function" then
+        pcall(oldStop)
+    elseif type(env.KuKirinHubCleanup) == "function" then
+        pcall(env.KuKirinHubCleanup)
+    end
+    warn("KuKirin : désactivé par le créateur")
+    return
+end
+
+local fn = prepare()
+
+if not fn then
+    warn("KuKirin : fichier inaccessible, ancien menu conservé")
+    return
+end
+
+local oldStop = env.KuKirinHubRemoteStop
+if type(oldStop) == "function" then
+    pcall(oldStop)
+end
+
+local ok, err = pcall(fn)
+
+if not ok then
+    warn("KuKirin : erreur du script", err)
+    return
+end
+
+loadedVersion = version
+env.KuKirinHubRemoteStop = stop
+
+print("KuKirin Hub chargé ! Version : " .. version)
+
 task.spawn(function()
-    local polls = 0
     while active do
-        task.wait(CHECK_SECONDS)
+        task.wait(60)
         if not active then break end
-        polls = polls + 1
 
         local newState, newVersion = readControl()
+
         if newState == "OFF" then
-            warn("KuKirin Hub : desactive par le createur")
+            warn("KuKirin : arrêt à distance")
             stop()
             break
-        elseif newState == "ON" then
-            failedControls = 0
-            if newVersion ~= loadedVersion then
-                runMain(newVersion)
-            end
-        else
-            failedControls = failedControls + 1
-            if failedControls >= 3 then
-                warn("KuKirin Hub : serveur de controle inaccessible")
-                stop()
-                break
-            end
         end
 
-        -- Si le fichier principal disparait mais control.txt reste ON,
-        -- on peut aussi arreter les anciennes sessions apres deux controles rates.
-        if active and polls % 5 == 0 then
-            if fetch(CODE_FILE) then
-                failedCodeChecks = 0
-            else
-                failedCodeChecks = failedCodeChecks + 1
-                if failedCodeChecks >= 2 then
-                    warn("KuKirin Hub : fichier principal supprime ou indisponible")
-                    stop()
-                    break
+        if newState == "ON"
+            and newVersion ~= loadedVersion then
+
+            local nextFn = prepare()
+
+            if nextFn then
+                local success, errorMessage = pcall(nextFn)
+
+                if success then
+                    loadedVersion = newVersion
+                    print("KuKirin mis à jour : " .. newVersion)
+                else
+                    warn("KuKirin : échec mise à jour", errorMessage)
                 end
             end
         end
