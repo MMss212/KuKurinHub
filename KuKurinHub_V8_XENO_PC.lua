@@ -74,7 +74,7 @@ local GREEN = Color3.fromRGB(32, 158, 100)
 local GREY = Color3.fromRGB(83, 90, 105)
 local RED = Color3.fromRGB(251, 56, 70)
 
-local ACCEL_TIME = 6             -- 0 -> 125 en ~6 s en RACE (sur sol plat)
+local ACCEL_TIME = 4.5             -- 0 -> 125 en ~6 s en RACE (sur sol plat)
 local FALL_SOFT_LIMIT = 48      -- chute aerienne adoucie (studs/s), pas de gravite globale modifiee
 local FALL_SOFT_RESPONSE = 13  -- correction progressive, sans a-coup
 local COAST_TIME = 12           -- 125 -> 0 en ~12 s au relachement
@@ -1905,7 +1905,7 @@ local function adaptScale()
     local camera=Workspace2.CurrentCamera
     local vp=camera and camera.ViewportSize or Vector2.new(1280,720)
     local w,h=main.Size.X.Offset,main.Size.Y.Offset
-    scale.Scale=math.clamp(math.min((vp.X-20)/w,(vp.Y-60)/h),0.50,1.08)
+    scale.Scale=math.clamp(math.min((vp.X-32)/w,(vp.Y-50)/h),0.55,1.08)
 end
 adaptScale()
 listen(Workspace2:GetPropertyChangedSignal("CurrentCamera"),adaptScale)
@@ -1918,7 +1918,7 @@ local top=create("Frame",{Name="TitleBar",BackgroundTransparency=1,
 label(top,"KuKurin",25,ACCENT,true).Position=UDim2.fromOffset(22,12)
 local titleAccent=top:FindFirstChildOfClass("TextLabel")
 titleAccent.Size=UDim2.fromOffset(175,36)
-local hubText=label(top,"HUB V7",12,ACCENT,true)
+local hubText=label(top,"HUB",12,ACCENT,true)
 hubText.Size=UDim2.fromOffset(42,28)
 hubText.Position=UDim2.fromOffset(158,16)
 local version=label(top,"UNIFIED  •  by Mmss_212",11,MUTED,false)
