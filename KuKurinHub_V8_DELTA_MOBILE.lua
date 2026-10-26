@@ -189,6 +189,41 @@ gui.DisplayOrder = 225
 gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 gui.Parent = playerGui
 
+-- Delta: commande d'acceleration tactile independante des touches clavier.
+local deltaGasHeld = false
+local deltaGas = Instance.new("TextButton")
+deltaGas.Name = "DeltaAccelerateur"
+deltaGas.Size = UDim2.fromOffset(78, 78)
+deltaGas.AnchorPoint = Vector2.new(1, 1)
+deltaGas.Position = UDim2.new(1, -18, 1, -112)
+deltaGas.BackgroundColor3 = Color3.fromRGB(255, 123, 28)
+deltaGas.TextColor3 = Color3.fromRGB(255, 255, 255)
+deltaGas.Font = Enum.Font.GothamBold
+deltaGas.TextSize = 19
+deltaGas.Text = "GAZ"
+deltaGas.Visible = false
+deltaGas.Active = true
+deltaGas.ZIndex = 95
+deltaGas.Parent = gui
+local deltaGasCorner = Instance.new("UICorner")
+deltaGasCorner.CornerRadius = UDim.new(1, 0)
+deltaGasCorner.Parent = deltaGas
+connect(deltaGas.InputBegan, function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        deltaGasHeld = true
+        deltaGas.BackgroundColor3 = Color3.fromRGB(42, 191, 112)
+    end
+end)
+connect(UIS.InputEnded, function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        deltaGasHeld = false
+        deltaGas.BackgroundColor3 = Color3.fromRGB(255, 123, 28)
+    end
+end)
+connect(RunService.RenderStepped, function()
+    deltaGas.Visible = running and UIS.TouchEnabled and currentSeat ~= nil and enabled
+end)
+
 local blur = Instance.new("BlurEffect")
 blur.Name = "KuKirinHubBlurV7_02"
 blur.Size = 0
@@ -1113,6 +1148,7 @@ connect(RunService.PreSimulation, function(rawDt)
     local throttle = UIS:IsKeyDown(Enum.KeyCode.W)
         or UIS:IsKeyDown(Enum.KeyCode.Z)
         or UIS:IsKeyDown(Enum.KeyCode.Up)
+        or deltaGasHeld
     local reverse = UIS:IsKeyDown(Enum.KeyCode.S)
         or UIS:IsKeyDown(Enum.KeyCode.Down)
     local handbrake = UIS:IsKeyDown(Enum.KeyCode.Space)
@@ -1905,7 +1941,7 @@ local function adaptScale()
     local camera=Workspace2.CurrentCamera
     local vp=camera and camera.ViewportSize or Vector2.new(1280,720)
     local w,h=main.Size.X.Offset,main.Size.Y.Offset
-    scale.Scale=math.clamp(math.min((vp.X-76)/w,(vp.Y-125)/h),0.30,0.68)
+    scale.Scale=math.clamp(math.min((vp.X-44)/w,(vp.Y-68)/h),0.38,0.69)
 end
 adaptScale()
 listen(Workspace2:GetPropertyChangedSignal("CurrentCamera"),adaptScale)
